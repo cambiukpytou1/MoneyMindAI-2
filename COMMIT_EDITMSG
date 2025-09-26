@@ -1,0 +1,13 @@
+Assistant checkpoint: Fixed port conflict issue
+
+Assistant generated file changes:
+- server/index.ts: Add fallback port logic
+
+---
+
+User prompt:
+
+The app isn't running, review and fix errors in the Console
+
+Replit-Commit-Author: Assistant
+Replit-Commit-Session-Id: 5f410ea3-e969-468a-987f-cb9f23db738c
