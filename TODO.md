@@ -1,0 +1,24 @@
+# MoneyMind 2 — Delivery TODO
+
+- [x] **P0 — Repository baseline:** Record the audited `main` revision (`aa09fa5`) and its GitHub upstream before making repository changes.
+- [x] **P0 — Source inventory:** Confirm that the tracked tree contains configuration and mistakenly committed Git-internal artifacts, but no `client/`, `server/`, `shared/`, database schema, or product source files.
+- [x] **P0 — Source-recovery investigation:** Inspect all reachable commits and branches, the open pull request, dangling objects, and the earlier `MoneyMindAI` repository; no recoverable MoneyMind application source was found.
+- [x] **P0 — Repository-hygiene repair:** Remove accidentally committed Git-internal files from the current revision while preserving legitimate project configuration; do not rewrite history without explicit approval.
+- [x] **P0 — Automated-readiness baseline:** Verify that `npm run check` fails because TypeScript has no inputs, `npm run build` fails because `client/index.html` is missing, and no test script is defined.
+- [x] **P0 — Deployment-readiness baseline:** Confirm that no CI workflow is configured and that the current tracked revision cannot produce a deployable build artifact.
+- [ ] **P0 — Source recovery decision (blocker):** Recover the original MoneyMind application source from the authoritative workstation, Replit project, archive, or another repository; if recovery is unavailable, formally approve an MVP rebuild from a written product specification.
+- [ ] **P0 — Sensitive-history remediation:** Review and rotate any credentials that may have been present in the accidentally committed repository metadata, then decide whether Git history rewriting is required before the repository is made public or deployed.
+- [ ] **P0 — Product-definition baseline (blocker if rebuilding):** Define MoneyMind 2 personas, supported regions and currencies, core user journeys, financial-data sources, AI boundaries, account/transaction ownership rules, and launch acceptance criteria.
+- [ ] **P0 — Domain-risk design:** Create and approve a privacy, authorization, data-retention, consent, Plaid/webhook, rate-limit, and incident-recovery design before connecting financial accounts or storing user financial data.
+- [ ] **P1 — Restore a runnable application:** Restore or build the client, server, shared-domain, and schema directories; make `npm run check`, `npm run build`, and `npm start` work from a clean clone.
+- [ ] **P1 — Establish test-first quality gates:** Add unit, integration, and browser end-to-end test commands; require type checks, tests, production build, and dependency auditing in continuous integration.
+- [ ] **P1 — Implement secure financial-account integration:** Configure secrets outside version control, create the minimum server-side Plaid flow, verify ownership and authorization on every request, validate webhooks, and add regression tests before enabling real accounts.
+- [ ] **P1 — Implement MoneyMind core workflows:** Deliver the agreed account, transaction, categorization, cash-flow/budget, goal, and financial-insight workflows with accessible loading, empty, error, and success states.
+- [ ] **P1 — Data-model and migration discipline:** Define the database schema, constraints, retention/deletion handling, audit fields, and migration/rollback procedure; never treat imported financial records as globally accessible.
+- [ ] **P1 — Dependency remediation:** Update and verify vulnerable production dependencies, including the high/critical findings surfaced by the baseline dependency audit, using controlled changes and regression tests.
+- [ ] **P2 — Interface refinement:** Apply a cohesive, elegant, product-specific visual system that preserves accessible contrast, keyboard navigation, responsive behavior, and clear financial-data provenance without generic dashboard filler.
+- [ ] **P2 — Operational readiness:** Add structured error handling, health checks, safe observability, deployment configuration, backup/recovery documentation, and an explicit release checklist.
+- [ ] **P2 — Documentation:** Replace the one-line README with local setup, environment-variable inventory (names only), test instructions, architecture overview, user-data boundaries, and deployment/rollback guidance.
+- [ ] **P2 — Release verification:** Execute the full automated suite and browser-based end-to-end checks at desktop and mobile widths, verify core user journeys against the agreed acceptance criteria, and record the release revision.
+- [ ] **P3 — Ongoing maintenance:** Re-run architecture, dependency, accessibility, and technical-debt reviews after each substantial feature set, keeping this file current and committed with every completed iteration.
+- [x] **Completed in this iteration:** Create this committed `TODO.md` as the durable backlog and status record for MoneyMind 2.
