@@ -1,7 +1,7 @@
-import { neon } from "@neondatabase/serverless";
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { randomUUID } from "node:crypto";
+import postgres from "postgres";
 import { accounts, sessions, transactions } from "../../shared/schema";
 import type {
   CreateFinancialTransaction,
@@ -14,7 +14,11 @@ export class PostgresMoneyMindRepository implements MoneyMindRepository {
   private readonly db;
 
   constructor(databaseUrl: string) {
-    this.db = drizzle(neon(databaseUrl));
+    const client = postgres(databaseUrl, {
+      prepare: false,
+      ssl: "require",
+    });
+    this.db = drizzle(client);
   }
 
   async createSession(session: PersistedSession): Promise<void> {
