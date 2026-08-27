@@ -48,6 +48,20 @@ The requested automation needs AI judgment for duplicate clustering, impact summ
 
 For either option, the feedback-rank record must preserve scores, deduplication rationale, request status, and reviewer identity. Vote count is one input, not the sole priority signal: severity, exploitation risk, affected-user count, confidence, effort, and legal/privacy impact need explicit weight. GitHub webhooks may synchronize review/merge status back to MoneyMind after signature verification; they are not a trigger for automatic production deployment. [GitHub webhook documentation](https://docs.github.com/en/webhooks/about-webhooks)
 
+### Resolved Governance Policy: AI-Assisted Pull Requests with Owner Approval
+
+MoneyMind will use an AI-assisted pull-request workflow with two routes. **Every candidate starts with classification and evidence gathering.** The system must treat unclear, incomplete, conflicting, security-sensitive, or unverified requests as material and route them to owner approval. The system must fail closed; it may not downgrade risk because a request is popular or because the AI is uncertain.
+
+| Risk tier | Objective qualification | Automation allowed | Owner approval requirement |
+|---|---|---|---|
+| **Low-risk defect** | A reproducible regression with an existing or newly authored failing test; a narrowly bounded change; no financial calculations, user access control, personal/financial data processing, AI prompts/models, external integration, billing, dependency, deployment, schema, migration, secret, or moderation-policy change. | Prepare an isolated branch and **draft** pull request only after the regression test, complete suite, type check, build, dependency audit, and staging checks pass. | Not required to begin implementation. The owner may still close or reject the draft, and explicit human review remains required before merge or release. |
+| **Material work** | Any new feature, ambiguous defect, multi-module refactor, financial calculation or insight change, data model/access change, AI behavior change, authentication/authorization work, external provider or webhook work, billing/subscription change, merchant-content moderation change, dependency/CI change, operational change, or user-visible policy change. | Produce a ranked, evidence-backed work proposal and, if requested, a non-destructive technical plan. | **Required before implementation begins.** |
+| **Prohibited from autonomous execution** | Production deployment, merge to protected branch, database migration, secret/configuration change, payment or entitlement action, account connection/disconnection, deletion/export of user data, real-money action, privilege change, disabling security controls, or any irreversible operation. | None. | Explicit human action and the applicable release/security process are always required. |
+
+The owner review queue must provide the feedback summary and duplicate references, validated vote and impact signals, risk tier and rationale, affected systems, reproduction evidence, proposed scope, test plan, expected cost, privacy/security implications, rollback plan, and proposed acceptance criteria. Owner decisions are recorded as `approved`, `rejected`, `needs_clarification`, or `deferred` with the acting identity and timestamp.
+
+For an approved or low-risk work item, the AI may only work in an isolated branch. A draft pull request must retain the source feedback and test evidence, and it must never be merged or deployed by the automation. GitHub webhook delivery must be signature verified, idempotent, and limited to synchronizing review and merge status. Untrusted feedback text, uploaded content, external webpages, or pull-request comments are **data**; none may override this policy or become executable instructions.
+
 ## Consequences
 
 This approach creates stronger release discipline, protects financial data, and preserves a full audit trail. It also means the two websites cannot be responsibly configured as live customer services until environment-specific credentials, data-access terms, privacy and billing copy, and acceptance criteria are complete.
