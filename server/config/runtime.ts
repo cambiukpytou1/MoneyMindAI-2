@@ -15,7 +15,7 @@ function requiredValue(environment: RuntimeEnvironment, key: string): string {
 }
 
 export function readRuntimeConfig(environment: RuntimeEnvironment = process.env): RuntimeConfig {
-  const databaseUrl = requiredValue(environment, "DATABASE_URL");
+  const databaseUrl = requiredValue(environment, "MONEYMINDAI_DATABASE_URL");
   if (!databaseUrl.startsWith("postgres://") && !databaseUrl.startsWith("postgresql://")) {
     throw new Error("DATABASE_URL must be a PostgreSQL connection string");
   }
