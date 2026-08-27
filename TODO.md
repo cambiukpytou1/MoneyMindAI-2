@@ -71,7 +71,7 @@
 - [x] **Completed — Database isolation hardening:** Require `MONEYMINDAI_DATABASE_URL` rather than the managed workspace’s built-in `DATABASE_URL`, proving through regression tests that a staging deployment cannot attach to an ambient platform database.
 - [x] **Completed — Live staging health validation:** Add a staging-only health test that issues a real `SELECT 1` through the Supabase adapter and reports `persistence: "connected"` only after a successful database query.
 - [x] **Completed — Staging runtime validation:** Verify the production Express entry point reports a real Supabase connection and rejects unauthenticated transaction access while the staging database contains no user or financial records.
-- [ ] **P0 — Fix staging preview host policy:** Allow only the managed staging preview hostname in Vite’s development host allowlist, then verify browser access and resave the staging checkpoint.
+- [x] **P0 — Fix staging preview host policy:** Allow only the managed staging preview hostname in Vite’s development host allowlist and verify the repaired preview renders without Vite’s blocked-host response.
 - [x] **P0 — Decide and provision managed PostgreSQL:** Select Supabase and provision the dedicated, empty `MoneyMindAI-2` staging project in West US (Oregon), with no production financial or user data.
 - [x] **P0 — Supabase compatibility update:** Replace the current Neon-specific database driver with Supabase’s documented Postgres.js/Drizzle pooled-connection adapter and verify tests, type checking, production build, and dependency audit pass.
 - [x] **P0 — Harden Supabase table exposure:** Enable RLS and revoke `anon` and `authenticated` grants on all six MoneyMind financial tables; browser-to-database access remains prohibited.
