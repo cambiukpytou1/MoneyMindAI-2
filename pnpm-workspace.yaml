@@ -1,7 +1,5 @@
-onlyBuiltDependencies:
-  - esbuild
-
-ignoredBuiltDependencies:
-  - '@esbuild-kit/core-utils'
-  - bufferutil
-  - tesseract.js
+allowBuilds:
+  esbuild: true
+  '@esbuild-kit/core-utils': false
+  bufferutil: false
+  tesseract.js: false
