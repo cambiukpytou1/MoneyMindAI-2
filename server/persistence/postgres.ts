@@ -11,14 +11,19 @@ import type {
 } from "./types";
 
 export class PostgresMoneyMindRepository implements MoneyMindRepository {
+  private readonly client;
   private readonly db;
 
   constructor(databaseUrl: string) {
-    const client = postgres(databaseUrl, {
+    this.client = postgres(databaseUrl, {
       prepare: false,
       ssl: "require",
     });
-    this.db = drizzle(client);
+    this.db = drizzle(this.client);
+  }
+
+  async ping(): Promise<void> {
+    await this.client`select 1`;
   }
 
   async createSession(session: PersistedSession): Promise<void> {

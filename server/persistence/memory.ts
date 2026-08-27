@@ -22,6 +22,10 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
     this.accounts.set(account.id, account);
   }
 
+  ping(): void {
+    // The in-memory adapter is intentionally always available for deterministic unit tests.
+  }
+
   createSession(session: PersistedSession): void {
     this.sessions.set(session.tokenHash, session);
   }

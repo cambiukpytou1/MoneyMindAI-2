@@ -52,8 +52,13 @@ export function createMoneyMindApp({ repository, sessions, staticDirectory }: Ap
     next();
   };
 
-  app.get("/api/health", (_request, response) => {
-    response.json({ ok: true, service: "moneymind", persistence: "configured" });
+  app.get("/api/health", async (_request, response) => {
+    try {
+      await repository.ping();
+      response.json({ ok: true, service: "moneymind", persistence: "connected" });
+    } catch {
+      response.status(503).json({ ok: false, service: "moneymind", persistence: "unavailable" });
+    }
   });
 
   app.get("/api/transactions/:transactionId", requireUser, async (request: AuthenticatedRequest, response) => {

@@ -34,6 +34,7 @@ export type CreateFinancialTransaction = Omit<FinancialTransaction, "id" | "user
 type MaybePromise<Value> = Value | Promise<Value>;
 
 export interface MoneyMindRepository {
+  ping(): MaybePromise<void>;
   createSession(session: PersistedSession): MaybePromise<void>;
   getActiveSessionByTokenHash(tokenHash: string, now: Date): MaybePromise<PersistedSession | null>;
   revokeSessionByTokenHash(tokenHash: string, revokedAt: Date): MaybePromise<void>;
