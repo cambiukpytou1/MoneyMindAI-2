@@ -1,0 +1,16 @@
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+    },
+  },
+  test: {
+    environment: "node",
+    include: ["client/src/**/*.test.ts", "server/**/*.test.ts"],
+    exclude: ["node_modules", "dist"],
+  },
+});
