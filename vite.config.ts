@@ -29,6 +29,9 @@ export default defineConfig({
     },
   },
   root: path.resolve(__dirname, "client"),
+  server: {
+    allowedHosts: ["5173-ix8jlrqfw38gutlpfn807-58c261fa.us2.manus.computer"],
+  },
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
