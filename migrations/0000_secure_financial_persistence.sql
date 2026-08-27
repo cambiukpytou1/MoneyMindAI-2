@@ -82,3 +82,17 @@ CREATE TABLE budgets (
   CONSTRAINT budgets_owner_category_month_unique UNIQUE (user_id, category, budgeting_month)
 );
 CREATE INDEX budgets_owner_month_idx ON budgets(user_id, budgeting_month);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE users FROM anon, authenticated;
+REVOKE ALL ON TABLE sessions FROM anon, authenticated;
+REVOKE ALL ON TABLE financial_connections FROM anon, authenticated;
+REVOKE ALL ON TABLE accounts FROM anon, authenticated;
+REVOKE ALL ON TABLE transactions FROM anon, authenticated;
+REVOKE ALL ON TABLE budgets FROM anon, authenticated;
