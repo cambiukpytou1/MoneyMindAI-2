@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type {
+  CreateFinancialAccount,
+  CreateFinancialConnection,
   CreateFinancialTransaction,
   FinancialAccount,
+  FinancialConnection,
   FinancialTransaction,
   MoneyMindRepository,
   MoneyMindUser,
@@ -11,6 +14,7 @@ import type {
 export class InMemoryMoneyMindRepository implements MoneyMindRepository {
   private readonly users = new Map<string, MoneyMindUser>();
   private readonly sessions = new Map<string, PersistedSession>();
+  private readonly connections = new Map<string, FinancialConnection>();
   private readonly accounts = new Map<string, FinancialAccount>();
   private readonly transactions = new Map<string, FinancialTransaction>();
 
@@ -24,6 +28,22 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
 
   ping(): void {
     // The in-memory adapter is intentionally always available for deterministic unit tests.
+  }
+
+  createUser(user: MoneyMindUser): MoneyMindUser | null {
+    if (Array.from(this.users.values()).some((storedUser) => storedUser.email === user.email)) {
+      return null;
+    }
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  getUserByEmail(email: string): MoneyMindUser | null {
+    return Array.from(this.users.values()).find((user) => user.email === email) ?? null;
+  }
+
+  getUserById(id: string): MoneyMindUser | null {
+    return this.users.get(id) ?? null;
   }
 
   createSession(session: PersistedSession): void {
@@ -43,6 +63,32 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
     if (session) {
       this.sessions.set(tokenHash, { ...session, revokedAt });
     }
+  }
+
+  createFinancialConnectionForUser(userId: string, connection: CreateFinancialConnection): FinancialConnection {
+    const created: FinancialConnection = { id: randomUUID(), userId, ...connection };
+    this.connections.set(created.id, created);
+    return created;
+  }
+
+  createFinancialAccountsForConnection(
+    userId: string,
+    connectionId: string,
+    accounts: CreateFinancialAccount[],
+  ): FinancialAccount[] {
+    const connection = this.connections.get(connectionId);
+    if (!connection || connection.userId !== userId) {
+      return [];
+    }
+    return accounts.map((account) => {
+      const created: FinancialAccount = { id: randomUUID(), userId, connectionId, ...account };
+      this.accounts.set(created.id, created);
+      return created;
+    });
+  }
+
+  getAccountsForUser(userId: string): FinancialAccount[] {
+    return Array.from(this.accounts.values()).filter((account) => account.userId === userId);
   }
 
   addTransaction(transaction: FinancialTransaction): void {
@@ -73,5 +119,13 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
       throw new Error("Expected exactly one stored session");
     }
     return sessions[0]!;
+  }
+
+  getOnlyConnection(): FinancialConnection {
+    const connections = Array.from(this.connections.values());
+    if (connections.length !== 1) {
+      throw new Error("Expected exactly one stored connection");
+    }
+    return connections[0]!;
   }
 }

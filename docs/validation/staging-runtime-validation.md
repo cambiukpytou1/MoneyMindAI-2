@@ -12,3 +12,7 @@
 | Browser workspace | The production-built workspace rendered with its illustrative-data and unavailable-capability disclosures visible. The “Review all” control expanded the transaction list and toggled to “Show fewer.” |
 
 The browser validations were executed against an isolated production-build test process. A managed staging deployment checkpoint is the next step; publication remains an explicit user-controlled action.
+
+## Published Staging Verification
+
+The published staging domain rendered the illustrative MoneyMind workspace and its non-production-data disclosure. The published `GET /api/health` endpoint returned `200` with `persistence: "connected"`, confirming the deployed server reached the isolated Supabase staging database without exposing configuration values or enabling any live financial connection.
