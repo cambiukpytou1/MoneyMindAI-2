@@ -38,6 +38,15 @@ const plaidExchangeSchema = z.object({
   acceptsConnectionConsent: z.literal(true),
 });
 
+const budgetSchema = z.object({
+  category: z.string().trim().min(1).max(100),
+  budgetingMonth: z.string().regex(/^\d{4}-\d{2}-01$/),
+  monthlyLimitMinor: z.number().int().positive().max(100_000_000),
+  currency: z.string().length(3).transform((value) => value.toUpperCase()),
+});
+
+const budgetMonthSchema = z.string().regex(/^\d{4}-\d{2}$/);
+
 type AppDependencies = {
   repository: MoneyMindRepository;
   sessions: SessionManager;
@@ -290,6 +299,26 @@ export function createMoneyMindApp({ repository, sessions, staticDirectory, plai
     const limit = parsedLimit.success ? parsedLimit.data : 50;
     const transactions = await repository.listTransactionsForUser(request.userId!, limit);
     response.json({ transactions: transactions.map(presentTransaction) });
+  });
+
+  app.post("/api/budgets", requireUser, async (request: AuthenticatedRequest, response) => {
+    const parsed = budgetSchema.safeParse(request.body);
+    if (!parsed.success) {
+      response.status(400).json({ error: "Invalid budget payload" });
+      return;
+    }
+    const budget = await repository.upsertBudgetForUser(request.userId!, parsed.data);
+    response.status(201).json({ budget });
+  });
+
+  app.get("/api/budgets", requireUser, async (request: AuthenticatedRequest, response) => {
+    const parsedMonth = budgetMonthSchema.safeParse(request.query.month);
+    if (!parsedMonth.success) {
+      response.status(400).json({ error: "Invalid budget month" });
+      return;
+    }
+    const budgets = await repository.getBudgetSummariesForUser(request.userId!, parsedMonth.data);
+    response.json({ budgets });
   });
 
   app.get("/api/transactions/:transactionId", requireUser, async (request: AuthenticatedRequest, response) => {

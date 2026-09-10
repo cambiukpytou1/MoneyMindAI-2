@@ -1,20 +1,24 @@
-import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, gt, inArray, isNull, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
-import { accounts, financialConnections, sessions, transactions, users } from "../../shared/schema";
+import { accounts, budgets, financialConnections, sessions, transactions, users } from "../../shared/schema";
 import type {
   CreateFinancialAccount,
+  CreateFinancialBudget,
   CreateFinancialConnection,
   CreateMoneyMindUser,
   CreateFinancialTransaction,
   FinancialAccount,
+  FinancialBudget,
+  FinancialBudgetSummary,
   FinancialConnection,
   FinancialTransaction,
   MoneyMindUser,
   MoneyMindRepository,
   PersistedSession,
 } from "./types";
+import { calculateBudgetSummary } from "../domain/budget";
 
 export class PostgresMoneyMindRepository implements MoneyMindRepository {
   private readonly client;
@@ -378,5 +382,73 @@ export class PostgresMoneyMindRepository implements MoneyMindRepository {
       });
 
     return created ?? null;
+  }
+
+  async upsertBudgetForUser(userId: string, budget: CreateFinancialBudget): Promise<FinancialBudget> {
+    const [stored] = await this.db
+      .insert(budgets)
+      .values({ id: randomUUID(), userId, ...budget })
+      .onConflictDoUpdate({
+        target: [budgets.userId, budgets.category, budgets.budgetingMonth],
+        set: { monthlyLimitMinor: budget.monthlyLimitMinor, currency: budget.currency, updatedAt: new Date() },
+      })
+      .returning({
+        id: budgets.id,
+        userId: budgets.userId,
+        category: budgets.category,
+        budgetingMonth: budgets.budgetingMonth,
+        monthlyLimitMinor: budgets.monthlyLimitMinor,
+        currency: budgets.currency,
+      });
+    if (!stored) throw new Error("Unable to save budget");
+    return stored;
+  }
+
+  async getBudgetSummariesForUser(userId: string, month: string): Promise<FinancialBudgetSummary[]> {
+    const start = `${month}-01`;
+    const [year, calendarMonth] = month.split("-").map(Number);
+    const end = `${year}-${String((calendarMonth ?? 12) === 12 ? 1 : (calendarMonth ?? 0) + 1).padStart(2, "0")}-01`;
+    const endYear = calendarMonth === 12 ? (year ?? 0) + 1 : year;
+    const monthEnd = `${endYear}-${end.slice(5)}`;
+    const [budgetRows, transactionRows] = await Promise.all([
+      this.db.select({
+        id: budgets.id,
+        userId: budgets.userId,
+        category: budgets.category,
+        budgetingMonth: budgets.budgetingMonth,
+        monthlyLimitMinor: budgets.monthlyLimitMinor,
+        currency: budgets.currency,
+      }).from(budgets).where(and(eq(budgets.userId, userId), eq(budgets.budgetingMonth, start))),
+      this.db.select({
+        id: transactions.id,
+        userId: transactions.userId,
+        accountId: transactions.accountId,
+        providerTransactionId: transactions.providerTransactionId,
+        merchant: transactions.merchant,
+        amountMinor: transactions.amountMinor,
+        currency: transactions.currency,
+        occurredOn: transactions.occurredOn,
+        category: transactions.category,
+        pending: transactions.pending,
+      }).from(transactions).where(and(
+        eq(transactions.userId, userId),
+        isNull(transactions.removedAt),
+        gte(transactions.occurredOn, start),
+        lt(transactions.occurredOn, monthEnd),
+      )),
+    ]);
+    return budgetRows
+      .sort((left, right) => left.category.localeCompare(right.category))
+      .map((budget) => ({
+        ...budget,
+        ...calculateBudgetSummary(
+          budget,
+          transactionRows.map((transaction) => ({
+            ...transaction,
+            direction: transaction.amountMinor >= 0 ? "expense" as const : "income" as const,
+          })),
+          month,
+        ),
+      }));
   }
 }

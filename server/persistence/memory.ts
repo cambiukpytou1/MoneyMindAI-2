@@ -1,16 +1,20 @@
 import { randomUUID } from "node:crypto";
 import type {
   CreateFinancialAccount,
+  CreateFinancialBudget,
   CreateFinancialConnection,
   CreateFinancialTransaction,
   FinancialTransactionSyncPage,
   FinancialAccount,
+  FinancialBudget,
+  FinancialBudgetSummary,
   FinancialConnection,
   FinancialTransaction,
   MoneyMindRepository,
   MoneyMindUser,
   PersistedSession,
 } from "./types";
+import { calculateBudgetSummary } from "../domain/budget";
 
 export class InMemoryMoneyMindRepository implements MoneyMindRepository {
   private readonly users = new Map<string, MoneyMindUser>();
@@ -18,6 +22,7 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
   private readonly connections = new Map<string, FinancialConnection>();
   private readonly accounts = new Map<string, FinancialAccount>();
   private readonly transactions = new Map<string, FinancialTransaction>();
+  private readonly budgets = new Map<string, FinancialBudget>();
 
   addUser(user: MoneyMindUser): void {
     this.users.set(user.id, user);
@@ -222,6 +227,33 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
       .filter((transaction) => transaction.userId === userId)
       .sort((left, right) => right.occurredOn.localeCompare(left.occurredOn) || right.id.localeCompare(left.id))
       .slice(0, limit);
+  }
+
+  upsertBudgetForUser(userId: string, budget: CreateFinancialBudget): FinancialBudget {
+    const existing = Array.from(this.budgets.values()).find((stored) =>
+      stored.userId === userId
+      && stored.category === budget.category
+      && stored.budgetingMonth === budget.budgetingMonth,
+    );
+    const stored: FinancialBudget = { id: existing?.id ?? randomUUID(), userId, ...budget };
+    this.budgets.set(stored.id, stored);
+    return stored;
+  }
+
+  getBudgetSummariesForUser(userId: string, month: string): FinancialBudgetSummary[] {
+    const transactions = Array.from(this.transactions.values())
+      .filter((transaction) => transaction.userId === userId)
+      .map((transaction) => ({
+        ...transaction,
+        direction: transaction.amountMinor >= 0 ? "expense" as const : "income" as const,
+      }));
+    return Array.from(this.budgets.values())
+      .filter((budget) => budget.userId === userId && budget.budgetingMonth === `${month}-01`)
+      .sort((left, right) => left.category.localeCompare(right.category))
+      .map((budget) => ({
+        ...budget,
+        ...calculateBudgetSummary(budget, transactions, month),
+      }));
   }
 
   getOnlySession(): PersistedSession {

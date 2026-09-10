@@ -55,6 +55,23 @@ export type FinancialTransaction = {
 export type CreateFinancialTransaction = Omit<FinancialTransaction, "id" | "userId">;
 export type CreateMoneyMindUser = MoneyMindUser;
 
+export type FinancialBudget = {
+  id: string;
+  userId: string;
+  category: string;
+  budgetingMonth: string;
+  monthlyLimitMinor: number;
+  currency: string;
+};
+
+export type CreateFinancialBudget = Omit<FinancialBudget, "id" | "userId">;
+
+export type FinancialBudgetSummary = FinancialBudget & {
+  spentMinor: number;
+  remainingMinor: number;
+  status: "on_track" | "over_budget";
+};
+
 export type SyncedFinancialTransaction = {
   providerTransactionId: string;
   providerAccountId: string;
@@ -116,4 +133,6 @@ export interface MoneyMindRepository {
   listTransactionsForUser(userId: string, limit: number): MaybePromise<FinancialTransaction[]>;
   getTransactionForUser(id: string, userId: string): MaybePromise<FinancialTransaction | null>;
   createTransactionForUser(userId: string, transaction: CreateFinancialTransaction): MaybePromise<FinancialTransaction | null>;
+  upsertBudgetForUser(userId: string, budget: CreateFinancialBudget): MaybePromise<FinancialBudget>;
+  getBudgetSummariesForUser(userId: string, month: string): MaybePromise<FinancialBudgetSummary[]>;
 }

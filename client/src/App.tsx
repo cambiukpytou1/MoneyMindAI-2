@@ -23,6 +23,17 @@ type Transaction = {
   pending: boolean;
 };
 
+type Budget = {
+  id: string;
+  category: string;
+  budgetingMonth: string;
+  monthlyLimitMinor: number;
+  currency: string;
+  spentMinor: number;
+  remainingMinor: number;
+  status: "on_track" | "over_budget";
+};
+
 type AppPage = "overview" | "transactions" | "budgets" | "goals" | "insights" | "connections" | "community" | "feedback" | "settings" | "pricing";
 type ApiError = { error?: string };
 
@@ -256,6 +267,44 @@ function Transactions() {
   );
 }
 
+function currentBudgetMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function Budgets() {
+  const [month, setMonth] = useState(currentBudgetMonth);
+  const [category, setCategory] = useState("");
+  const [limit, setLimit] = useState("");
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const loadBudgets = useCallback(async (requestedMonth: string) => {
+    setLoading(true); setError("");
+    try { const response = await api<{ budgets: Budget[] }>(`/api/budgets?month=${requestedMonth}`); setBudgets(response.budgets); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load budgets."); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { void loadBudgets(month); }, [loadBudgets, month]);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const monthlyLimitMinor = Math.round(Number(limit) * 100);
+    if (!Number.isFinite(monthlyLimitMinor) || monthlyLimitMinor <= 0) { setError("Enter a monthly amount greater than zero."); return; }
+    setSubmitting(true); setError(""); setStatus("");
+    try {
+      await api<{ budget: Budget }>("/api/budgets", { method: "POST", body: JSON.stringify({ category, budgetingMonth: `${month}-01`, monthlyLimitMinor, currency: "USD" }) });
+      setCategory(""); setLimit(""); setStatus("Budget saved. Actuals include only your posted transactions for this month."); await loadBudgets(month);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to save budget."); }
+    finally { setSubmitting(false); }
+  }
+  return <section className="page-layout" aria-labelledby="budgets-title">
+    <header className="page-heading"><div><h1 id="budgets-title">Budgets</h1><p>Set a monthly category limit, then compare it with your posted Sandbox transactions.</p></div><span className="environment-copy">Sandbox data only</span></header>
+    <section className="budget-grid"><section className="data-panel budget-form-panel" aria-labelledby="budget-form-title"><div className="section-heading"><h2 id="budget-form-title">Set a category plan</h2><span>Private to your account</span></div><form onSubmit={submit} className="budget-form"><label>Month<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} required /></label><label>Category<input value={category} onChange={(event) => setCategory(event.target.value)} maxLength={100} placeholder="e.g. Groceries" required /></label><label>Monthly limit (USD)<input type="number" value={limit} onChange={(event) => setLimit(event.target.value)} min="0.01" step="0.01" inputMode="decimal" placeholder="0.00" required /></label><button className="button primary" type="submit" disabled={submitting}>{submitting ? "Saving…" : "Save category plan"}</button></form>{status && <p className="form-success" role="status">{status}</p>}{error && <p className="form-error" role="alert">{error}</p>}</section><aside className="connection-safety"><h2>How actuals work</h2><ul><li>Only posted transactions in this category and month count.</li><li>Pending transactions are excluded until posted.</li><li>Plans and actuals are scoped to your signed-in account.</li></ul></aside></section>
+    {loading ? <EmptyState title="Loading budgets"><p>Calculating your posted transaction actuals.</p></EmptyState> : budgets.length === 0 ? <EmptyState title="No plans for this month"><p>Create your first category plan to make spending context easier to review.</p></EmptyState> : <section className="data-panel"><div className="section-heading"><h2>Monthly plans</h2><span>{new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })}</span></div><div className="budget-list">{budgets.map((budget) => { const percent = Math.min(100, Math.round((budget.spentMinor / budget.monthlyLimitMinor) * 100)); return <article className="budget-row" key={budget.id}><div className="budget-row-heading"><div><h3>{budget.category}</h3><p>{formatMoney(budget.spentMinor, budget.currency)} posted of {formatMoney(budget.monthlyLimitMinor, budget.currency)}</p></div><strong className={budget.status === "over_budget" ? "amount-over" : ""}>{budget.remainingMinor >= 0 ? `${formatMoney(budget.remainingMinor, budget.currency)} left` : `${formatMoney(Math.abs(budget.remainingMinor), budget.currency)} over`}</strong></div><div className="budget-progress" aria-label={`${budget.category}: ${percent}% of plan used`}><span className={budget.status === "over_budget" ? "over" : ""} style={{ width: `${percent}%` }} /></div></article>; })}</div></section>}
+  </section>;
+}
+
 function PlannedPage({ page }: { page: Exclude<AppPage, "overview" | "connections" | "pricing"> }) {
   const content: Record<typeof page, { title: string; copy: string; action: string; actionPage?: AppPage }> = {
     transactions: { title: "Transactions", copy: "Transactions will appear here only after a connected account has completed its initial Sandbox sync. The list will support search, category review, and clear freshness details.", action: "Connect Sandbox institution", actionPage: "connections" },
@@ -305,7 +354,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => Promise<voi
   return (
     <main className="application-shell">
       <aside className="navigation-panel" aria-label="MoneyMind navigation"><a className="wordmark" href="/overview" onClick={(event) => { event.preventDefault(); changePage("overview"); }}>MoneyMind<span>.</span></a><nav>{navigation.map((item) => <button key={item.page} className={page === item.page ? "nav-link active" : "nav-link"} type="button" aria-current={page === item.page ? "page" : undefined} onClick={() => changePage(item.page)}>{item.label}</button>)}</nav><div className="navigation-footer"><button className="nav-link" type="button" onClick={() => changePage("pricing")}>Pricing</button><button className="quiet-button" type="button" onClick={() => void onLogout()}>Sign out</button></div></aside>
-      <section className="workspace"><header className="workspace-header"><p>Signed in as <strong>{user.email}</strong></p><span>Staging · Plaid Sandbox only</span></header>{accountError && <p className="form-error page-error" role="alert">{accountError}</p>}{page === "overview" && <Overview accounts={accounts} loading={accountsLoading} />}{page === "transactions" && <Transactions />}{page === "connections" && <Connections onConnectionComplete={loadAccounts} />}{page === "pricing" && <Pricing />}{page !== "overview" && page !== "transactions" && page !== "connections" && page !== "pricing" && <PlannedPage page={page} />}</section>
+      <section className="workspace"><header className="workspace-header"><p>Signed in as <strong>{user.email}</strong></p><span>Staging · Plaid Sandbox only</span></header>{accountError && <p className="form-error page-error" role="alert">{accountError}</p>}{page === "overview" && <Overview accounts={accounts} loading={accountsLoading} />}{page === "transactions" && <Transactions />}{page === "budgets" && <Budgets />}{page === "connections" && <Connections onConnectionComplete={loadAccounts} />}{page === "pricing" && <Pricing />}{page !== "overview" && page !== "transactions" && page !== "budgets" && page !== "connections" && page !== "pricing" && <PlannedPage page={page} />}</section>
     </main>
   );
 }
