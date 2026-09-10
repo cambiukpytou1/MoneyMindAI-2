@@ -20,3 +20,15 @@ The completed provider handoff created an encrypted access-token record and four
 ## Second Synthetic Owner
 
 With explicit user approval, a second `@moneymind.invalid` owner was registered on the updated staging build, accepted the connection consent notice, received a server-generated short-lived Link token, and selected the Plaid Sandbox Chase institution. The provider-hosted handoff is now at the `Return to institution` stage; the completion must occur only with Plaid’s published Sandbox values and must return to MoneyMind before exchange and cursor synchronization are verified.
+
+## Secure Synchronization Result
+
+The second synthetic owner completed the Plaid Sandbox connection. The server created an active, encrypted owner-scoped connection with fourteen test accounts. An authenticated request to the owner-scoped synchronization endpoint completed successfully, importing fifty test transactions and storing a connection cursor. A read-only aggregate database check confirmed the connection remained active, its cursor was present, and the fifty records were associated only with the synthetic owner.
+
+## Browser Session Limitation
+
+The final transaction-workspace build was run on a different isolated test port. Its host-specific browser session is intentionally not treated as transferable across test-server contexts, so the existing synthetic owner was presented with the sign-in screen on the new port. No attempt was made to recover, guess, log, or bypass the synthetic password.
+
+## Completed Cursor-Synchronization Browser Check
+
+The updated staging server was restarted on the original authenticated test origin. The second synthetic owner’s session remained valid, and the Transactions route completed its owner-scoped API request. The browser rendered fifty imported Plaid Sandbox records, each with a merchant, normalized category, date, amount, and pending indicator when applicable. The view does not render provider transaction identifiers, encrypted tokens, connection cursors, or any another owner’s data.
