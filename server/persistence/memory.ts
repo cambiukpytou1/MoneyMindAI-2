@@ -71,6 +71,20 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
     return created;
   }
 
+  setFinancialConnectionStatusForUser(
+    userId: string,
+    connectionId: string,
+    status: FinancialConnection["status"],
+  ): FinancialConnection | null {
+    const connection = this.connections.get(connectionId);
+    if (!connection || connection.userId !== userId) {
+      return null;
+    }
+    const updated = { ...connection, status };
+    this.connections.set(connectionId, updated);
+    return updated;
+  }
+
   createFinancialAccountsForConnection(
     userId: string,
     connectionId: string,

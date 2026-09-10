@@ -74,7 +74,7 @@ describe("Plaid Sandbox connection API", () => {
       .send({ publicToken: "public-sandbox-token", acceptsConnectionConsent: true })
       .expect(201);
 
-    expect(exchange.body.connection).toMatchObject({ provider: "plaid", status: "pending" });
+    expect(exchange.body.connection).toMatchObject({ provider: "plaid", status: "active" });
     expect(exchange.body.connection.encryptedAccessToken).toBeUndefined();
     expect(exchange.body.accounts).toEqual([expect.objectContaining({ displayName: "Plaid Checking", currency: "USD" })]);
 

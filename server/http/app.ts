@@ -212,8 +212,12 @@ export function createMoneyMindApp({ repository, sessions, staticDirectory, plai
       });
       const providerAccounts = await plaid.gateway.getAccounts(exchanged.accessToken);
       const accounts = await repository.createFinancialAccountsForConnection(request.userId!, connection.id, providerAccounts);
+      const activeConnection = await repository.setFinancialConnectionStatusForUser(request.userId!, connection.id, "active");
+      if (!activeConnection) {
+        throw new Error("Unable to activate financial connection");
+      }
       response.status(201).json({
-        connection: { id: connection.id, provider: connection.provider, status: connection.status },
+        connection: { id: activeConnection.id, provider: activeConnection.provider, status: activeConnection.status },
         accounts,
       });
     } catch {

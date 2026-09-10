@@ -13,8 +13,10 @@ const canRunAgainstStaging = Boolean(
 describe.runIf(canRunAgainstStaging)("staging health endpoint", () => {
   it("verifies the supplied isolated database configuration through the lightweight health route", async () => {
     const config = readRuntimeConfig();
+    const repository = new PostgresMoneyMindRepository(config.databaseUrl);
+    await expect(repository.ping()).resolves.toBeUndefined();
     const app = createMoneyMindApp({
-      repository: new PostgresMoneyMindRepository(config.databaseUrl),
+      repository,
       sessions: new SessionManager(config.sessionSecret),
       staticDirectory: null,
     });

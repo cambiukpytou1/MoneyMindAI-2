@@ -66,6 +66,11 @@ export interface MoneyMindRepository {
   getActiveSessionByTokenHash(tokenHash: string, now: Date): MaybePromise<PersistedSession | null>;
   revokeSessionByTokenHash(tokenHash: string, revokedAt: Date): MaybePromise<void>;
   createFinancialConnectionForUser(userId: string, connection: CreateFinancialConnection): MaybePromise<FinancialConnection>;
+  setFinancialConnectionStatusForUser(
+    userId: string,
+    connectionId: string,
+    status: FinancialConnection["status"],
+  ): MaybePromise<FinancialConnection | null>;
   createFinancialAccountsForConnection(
     userId: string,
     connectionId: string,

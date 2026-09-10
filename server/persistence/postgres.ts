@@ -88,6 +88,28 @@ export class PostgresMoneyMindRepository implements MoneyMindRepository {
     return { ...created, provider: "plaid" };
   }
 
+  async setFinancialConnectionStatusForUser(
+    userId: string,
+    connectionId: string,
+    status: FinancialConnection["status"],
+  ): Promise<FinancialConnection | null> {
+    const [updated] = await this.db
+      .update(financialConnections)
+      .set({ status })
+      .where(and(eq(financialConnections.id, connectionId), eq(financialConnections.userId, userId)))
+      .returning({
+        id: financialConnections.id,
+        userId: financialConnections.userId,
+        provider: financialConnections.provider,
+        providerItemId: financialConnections.providerItemId,
+        encryptedAccessToken: financialConnections.encryptedAccessToken,
+        encryptionKeyVersion: financialConnections.encryptionKeyVersion,
+        status: financialConnections.status,
+        cursor: financialConnections.cursor,
+      });
+    return updated ? { ...updated, provider: "plaid" } : null;
+  }
+
   async createFinancialAccountsForConnection(
     userId: string,
     connectionId: string,
