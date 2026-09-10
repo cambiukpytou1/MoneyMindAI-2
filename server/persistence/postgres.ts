@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
@@ -268,6 +268,26 @@ export class PostgresMoneyMindRepository implements MoneyMindRepository {
       })
       .from(accounts)
       .where(eq(accounts.userId, userId));
+  }
+
+  async listTransactionsForUser(userId: string, limit: number): Promise<FinancialTransaction[]> {
+    return this.db
+      .select({
+        id: transactions.id,
+        userId: transactions.userId,
+        accountId: transactions.accountId,
+        providerTransactionId: transactions.providerTransactionId,
+        merchant: transactions.merchant,
+        amountMinor: transactions.amountMinor,
+        currency: transactions.currency,
+        occurredOn: transactions.occurredOn,
+        category: transactions.category,
+        pending: transactions.pending,
+      })
+      .from(transactions)
+      .where(and(eq(transactions.userId, userId), isNull(transactions.removedAt)))
+      .orderBy(desc(transactions.occurredOn), desc(transactions.id))
+      .limit(limit);
   }
 
   async createSession(session: PersistedSession): Promise<void> {

@@ -12,6 +12,17 @@ type Account = {
   availableBalanceMinor: number | null;
 };
 
+type Transaction = {
+  id: string;
+  accountId: string;
+  merchant: string;
+  amountMinor: number;
+  currency: string;
+  occurredOn: string;
+  category: string;
+  pending: boolean;
+};
+
 type AppPage = "overview" | "transactions" | "budgets" | "goals" | "insights" | "connections" | "community" | "feedback" | "settings" | "pricing";
 type ApiError = { error?: string };
 
@@ -221,6 +232,30 @@ function Overview({ accounts, loading }: { accounts: Account[]; loading: boolean
   );
 }
 
+function Transactions() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    api<{ transactions: Transaction[] }>("/api/transactions?limit=50")
+      .then((response) => { if (active) setTransactions(response.transactions); })
+      .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : "Unable to load transactions."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <section className="page-layout" aria-labelledby="transactions-title">
+      <header className="page-heading"><div><h1 id="transactions-title">Transactions</h1><p>Owner-scoped records imported from your connected Sandbox accounts.</p></div><span className="environment-copy">Sandbox data only</span></header>
+      {loading ? <EmptyState title="Loading transactions"><p>Loading your private transaction history.</p></EmptyState> : error ? <EmptyState title="Unable to load transactions"><p role="alert">{error}</p></EmptyState> : transactions.length === 0 ? <EmptyState title="No transactions yet"><p>Open Connections and refresh a completed Sandbox institution to import test transactions.</p><button className="button primary" type="button" onClick={() => navigate("connections")}>Manage connections</button></EmptyState> : (
+        <section className="data-panel"><div className="section-heading"><h2>Recent activity</h2><span>{transactions.length} imported record{transactions.length === 1 ? "" : "s"}</span></div><div className="account-list">{transactions.map((transaction) => <article key={transaction.id} className="account-row"><div><h3>{transaction.merchant}</h3><p>{transaction.category} · {new Date(`${transaction.occurredOn}T00:00:00`).toLocaleDateString()}</p></div><div className="transaction-value"><strong>{formatMoney(transaction.amountMinor, transaction.currency)}</strong>{transaction.pending && <span>Pending</span>}</div></article>)}</div></section>
+      )}
+    </section>
+  );
+}
+
 function PlannedPage({ page }: { page: Exclude<AppPage, "overview" | "connections" | "pricing"> }) {
   const content: Record<typeof page, { title: string; copy: string; action: string; actionPage?: AppPage }> = {
     transactions: { title: "Transactions", copy: "Transactions will appear here only after a connected account has completed its initial Sandbox sync. The list will support search, category review, and clear freshness details.", action: "Connect Sandbox institution", actionPage: "connections" },
@@ -270,7 +305,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => Promise<voi
   return (
     <main className="application-shell">
       <aside className="navigation-panel" aria-label="MoneyMind navigation"><a className="wordmark" href="/overview" onClick={(event) => { event.preventDefault(); changePage("overview"); }}>MoneyMind<span>.</span></a><nav>{navigation.map((item) => <button key={item.page} className={page === item.page ? "nav-link active" : "nav-link"} type="button" aria-current={page === item.page ? "page" : undefined} onClick={() => changePage(item.page)}>{item.label}</button>)}</nav><div className="navigation-footer"><button className="nav-link" type="button" onClick={() => changePage("pricing")}>Pricing</button><button className="quiet-button" type="button" onClick={() => void onLogout()}>Sign out</button></div></aside>
-      <section className="workspace"><header className="workspace-header"><p>Signed in as <strong>{user.email}</strong></p><span>Staging · Plaid Sandbox only</span></header>{accountError && <p className="form-error page-error" role="alert">{accountError}</p>}{page === "overview" && <Overview accounts={accounts} loading={accountsLoading} />}{page === "connections" && <Connections onConnectionComplete={loadAccounts} />}{page === "pricing" && <Pricing />}{page !== "overview" && page !== "connections" && page !== "pricing" && <PlannedPage page={page} />}</section>
+      <section className="workspace"><header className="workspace-header"><p>Signed in as <strong>{user.email}</strong></p><span>Staging · Plaid Sandbox only</span></header>{accountError && <p className="form-error page-error" role="alert">{accountError}</p>}{page === "overview" && <Overview accounts={accounts} loading={accountsLoading} />}{page === "transactions" && <Transactions />}{page === "connections" && <Connections onConnectionComplete={loadAccounts} />}{page === "pricing" && <Pricing />}{page !== "overview" && page !== "transactions" && page !== "connections" && page !== "pricing" && <PlannedPage page={page} />}</section>
     </main>
   );
 }

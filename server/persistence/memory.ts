@@ -217,8 +217,11 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
     return created;
   }
 
-  listTransactionsForUser(userId: string): FinancialTransaction[] {
-    return Array.from(this.transactions.values()).filter((transaction) => transaction.userId === userId);
+  listTransactionsForUser(userId: string, limit = 50): FinancialTransaction[] {
+    return Array.from(this.transactions.values())
+      .filter((transaction) => transaction.userId === userId)
+      .sort((left, right) => right.occurredOn.localeCompare(left.occurredOn) || right.id.localeCompare(left.id))
+      .slice(0, limit);
   }
 
   getOnlySession(): PersistedSession {

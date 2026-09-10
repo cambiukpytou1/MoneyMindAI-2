@@ -285,6 +285,13 @@ export function createMoneyMindApp({ repository, sessions, staticDirectory, plai
     }
   });
 
+  app.get("/api/transactions", requireUser, async (request: AuthenticatedRequest, response) => {
+    const parsedLimit = z.coerce.number().int().min(1).max(100).default(50).safeParse(request.query.limit);
+    const limit = parsedLimit.success ? parsedLimit.data : 50;
+    const transactions = await repository.listTransactionsForUser(request.userId!, limit);
+    response.json({ transactions: transactions.map(presentTransaction) });
+  });
+
   app.get("/api/transactions/:transactionId", requireUser, async (request: AuthenticatedRequest, response) => {
     const transaction = await repository.getTransactionForUser(request.params.transactionId, request.userId!);
     if (!transaction) {

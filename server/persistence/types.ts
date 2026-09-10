@@ -113,6 +113,7 @@ export interface MoneyMindRepository {
     accounts: CreateFinancialAccount[],
   ): MaybePromise<FinancialAccount[]>;
   getAccountsForUser(userId: string): MaybePromise<FinancialAccount[]>;
+  listTransactionsForUser(userId: string, limit: number): MaybePromise<FinancialTransaction[]>;
   getTransactionForUser(id: string, userId: string): MaybePromise<FinancialTransaction | null>;
   createTransactionForUser(userId: string, transaction: CreateFinancialTransaction): MaybePromise<FinancialTransaction | null>;
 }
