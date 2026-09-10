@@ -2,6 +2,7 @@
   "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.24.0",
   "license": "MIT",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
