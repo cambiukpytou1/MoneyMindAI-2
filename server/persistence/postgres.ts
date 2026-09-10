@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
@@ -96,6 +96,115 @@ export class PostgresMoneyMindRepository implements MoneyMindRepository {
     const [updated] = await this.db
       .update(financialConnections)
       .set({ status })
+      .where(and(eq(financialConnections.id, connectionId), eq(financialConnections.userId, userId)))
+      .returning({
+        id: financialConnections.id,
+        userId: financialConnections.userId,
+        provider: financialConnections.provider,
+        providerItemId: financialConnections.providerItemId,
+        encryptedAccessToken: financialConnections.encryptedAccessToken,
+        encryptionKeyVersion: financialConnections.encryptionKeyVersion,
+        status: financialConnections.status,
+        cursor: financialConnections.cursor,
+      });
+    return updated ? { ...updated, provider: "plaid" } : null;
+  }
+
+  async getFinancialConnectionForUser(userId: string, connectionId: string): Promise<FinancialConnection | null> {
+    const [connection] = await this.db
+      .select({
+        id: financialConnections.id,
+        userId: financialConnections.userId,
+        provider: financialConnections.provider,
+        providerItemId: financialConnections.providerItemId,
+        encryptedAccessToken: financialConnections.encryptedAccessToken,
+        encryptionKeyVersion: financialConnections.encryptionKeyVersion,
+        status: financialConnections.status,
+        cursor: financialConnections.cursor,
+      })
+      .from(financialConnections)
+      .where(and(eq(financialConnections.id, connectionId), eq(financialConnections.userId, userId)))
+      .limit(1);
+    return connection ? { ...connection, provider: "plaid" } : null;
+  }
+
+  async synchronizeFinancialTransactionsForConnection(
+    userId: string,
+    connectionId: string,
+    page: import("./types").FinancialTransactionSyncPage,
+  ): Promise<import("./types").TransactionSynchronizationResult | null> {
+    const ownedAccounts = await this.db
+      .select({ id: accounts.id, providerAccountId: accounts.providerAccountId })
+      .from(accounts)
+      .where(and(eq(accounts.userId, userId), eq(accounts.connectionId, connectionId)));
+    if (ownedAccounts.length === 0) {
+      return null;
+    }
+    const accountIdsByProviderId = new Map(ownedAccounts.map((account) => [account.providerAccountId, account.id]));
+    const synchronize = async (records: import("./types").SyncedFinancialTransaction[]) => {
+      let count = 0;
+      for (const record of records) {
+        const accountId = accountIdsByProviderId.get(record.providerAccountId);
+        if (!accountId) continue;
+        await this.db
+          .insert(transactions)
+          .values({
+            id: randomUUID(),
+            userId,
+            accountId,
+            providerTransactionId: record.providerTransactionId,
+            merchant: record.merchant,
+            amountMinor: record.amountMinor,
+            currency: record.currency,
+            occurredOn: record.occurredOn,
+            category: record.category,
+            pending: record.pending,
+            removedAt: null,
+          })
+          .onConflictDoUpdate({
+            target: [transactions.accountId, transactions.providerTransactionId],
+            set: {
+              merchant: record.merchant,
+              amountMinor: record.amountMinor,
+              currency: record.currency,
+              occurredOn: record.occurredOn,
+              category: record.category,
+              pending: record.pending,
+              removedAt: null,
+              updatedAt: new Date(),
+            },
+          });
+        count += 1;
+      }
+      return count;
+    };
+    const added = await synchronize(page.added);
+    const modified = await synchronize(page.modified);
+    let removed = 0;
+    if (page.removedProviderTransactionIds.length > 0) {
+      const affected = await this.db
+        .update(transactions)
+        .set({ removedAt: new Date(), updatedAt: new Date() })
+        .where(and(
+          eq(transactions.userId, userId),
+          inArray(transactions.accountId, ownedAccounts.map((account) => account.id)),
+          inArray(transactions.providerTransactionId, page.removedProviderTransactionIds),
+          isNull(transactions.removedAt),
+        ))
+        .returning({ id: transactions.id });
+      removed = affected.length;
+    }
+    return { added, modified, removed };
+  }
+
+  async setFinancialConnectionCursorForUser(
+    userId: string,
+    connectionId: string,
+    cursor: string,
+  ): Promise<FinancialConnection | null> {
+    const [updated] = await this.db
+      .update(financialConnections)
+      .set({ cursor, lastSyncedAt: new Date(), updatedAt: new Date() })
       .where(and(eq(financialConnections.id, connectionId), eq(financialConnections.userId, userId)))
       .returning({
         id: financialConnections.id,

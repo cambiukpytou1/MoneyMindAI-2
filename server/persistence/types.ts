@@ -55,6 +55,31 @@ export type FinancialTransaction = {
 export type CreateFinancialTransaction = Omit<FinancialTransaction, "id" | "userId">;
 export type CreateMoneyMindUser = MoneyMindUser;
 
+export type SyncedFinancialTransaction = {
+  providerTransactionId: string;
+  providerAccountId: string;
+  merchant: string;
+  amountMinor: number;
+  currency: string;
+  occurredOn: string;
+  category: string;
+  pending: boolean;
+};
+
+export type FinancialTransactionSyncPage = {
+  added: SyncedFinancialTransaction[];
+  modified: SyncedFinancialTransaction[];
+  removedProviderTransactionIds: string[];
+  nextCursor: string;
+  hasMore: boolean;
+};
+
+export type TransactionSynchronizationResult = {
+  added: number;
+  modified: number;
+  removed: number;
+};
+
 type MaybePromise<Value> = Value | Promise<Value>;
 
 export interface MoneyMindRepository {
@@ -70,6 +95,17 @@ export interface MoneyMindRepository {
     userId: string,
     connectionId: string,
     status: FinancialConnection["status"],
+  ): MaybePromise<FinancialConnection | null>;
+  getFinancialConnectionForUser(userId: string, connectionId: string): MaybePromise<FinancialConnection | null>;
+  synchronizeFinancialTransactionsForConnection(
+    userId: string,
+    connectionId: string,
+    page: FinancialTransactionSyncPage,
+  ): MaybePromise<TransactionSynchronizationResult | null>;
+  setFinancialConnectionCursorForUser(
+    userId: string,
+    connectionId: string,
+    cursor: string,
   ): MaybePromise<FinancialConnection | null>;
   createFinancialAccountsForConnection(
     userId: string,

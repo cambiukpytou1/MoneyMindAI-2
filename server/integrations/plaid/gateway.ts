@@ -1,5 +1,5 @@
 import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
-import type { CreateFinancialAccount } from "../../persistence/types";
+import type { CreateFinancialAccount, FinancialTransactionSyncPage } from "../../persistence/types";
 import type { PlaidGateway } from "../../http/app";
 
 type PlaidSdkClient = {
@@ -23,6 +23,27 @@ type PlaidSdkClient = {
       }>;
     };
   }>;
+  transactionsSync(input: { access_token: string; cursor?: string }): Promise<{
+    data: {
+      added: PlaidTransaction[];
+      modified: PlaidTransaction[];
+      removed: Array<{ transaction_id: string }>;
+      next_cursor: string;
+      has_more: boolean;
+    };
+  }>;
+};
+
+type PlaidTransaction = {
+  transaction_id: string;
+  account_id: string;
+  merchant_name: string | null;
+  name: string;
+  amount: number;
+  iso_currency_code: string | null;
+  date: string;
+  personal_finance_category: { primary: string } | null;
+  pending: boolean;
 };
 
 function toMinorUnits(value: number | null): number | null {
@@ -30,6 +51,19 @@ function toMinorUnits(value: number | null): number | null {
     return null;
   }
   return Math.round(value * 100);
+}
+
+function normalizeTransaction(transaction: PlaidTransaction) {
+  return {
+    providerTransactionId: transaction.transaction_id,
+    providerAccountId: transaction.account_id,
+    merchant: transaction.merchant_name ?? transaction.name,
+    amountMinor: Math.round(transaction.amount * 100),
+    currency: transaction.iso_currency_code ?? "USD",
+    occurredOn: transaction.date,
+    category: transaction.personal_finance_category?.primary ?? "Uncategorized",
+    pending: transaction.pending,
+  };
 }
 
 export function createPlaidSandboxGateway(client: PlaidSdkClient, webhookUrl: string): PlaidGateway {
@@ -62,6 +96,20 @@ export function createPlaidSandboxGateway(client: PlaidSdkClient, webhookUrl: st
         currentBalanceMinor: toMinorUnits(account.balances.current),
         availableBalanceMinor: toMinorUnits(account.balances.available),
       }));
+    },
+
+    async syncTransactions(accessToken, cursor): Promise<FinancialTransactionSyncPage> {
+      const response = await client.transactionsSync({
+        access_token: accessToken,
+        ...(cursor ? { cursor } : {}),
+      });
+      return {
+        added: response.data.added.map(normalizeTransaction),
+        modified: response.data.modified.map(normalizeTransaction),
+        removedProviderTransactionIds: response.data.removed.map((transaction) => transaction.transaction_id),
+        nextCursor: response.data.next_cursor,
+        hasMore: response.data.has_more,
+      };
     },
   };
 }

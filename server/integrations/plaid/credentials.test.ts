@@ -11,6 +11,7 @@ describe("Plaid Sandbox credentials", () => {
     const response = await fetch("https://sandbox.plaid.com/institutions/get", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      signal: AbortSignal.timeout(10_000),
       body: JSON.stringify({
         client_id: plaidClientId,
         secret: plaidSecret,
@@ -24,5 +25,5 @@ describe("Plaid Sandbox credentials", () => {
 
     const payload = await response.json() as { institutions?: unknown[] };
     expect(payload.institutions).toHaveLength(1);
-  });
+  }, 15_000);
 });

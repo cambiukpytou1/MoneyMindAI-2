@@ -3,6 +3,7 @@ import type {
   CreateFinancialAccount,
   CreateFinancialConnection,
   CreateFinancialTransaction,
+  FinancialTransactionSyncPage,
   FinancialAccount,
   FinancialConnection,
   FinancialTransaction,
@@ -81,6 +82,99 @@ export class InMemoryMoneyMindRepository implements MoneyMindRepository {
       return null;
     }
     const updated = { ...connection, status };
+    this.connections.set(connectionId, updated);
+    return updated;
+  }
+
+  getFinancialConnectionForUser(userId: string, connectionId: string): FinancialConnection | null {
+    const connection = this.connections.get(connectionId);
+    return connection?.userId === userId ? connection : null;
+  }
+
+  synchronizeFinancialTransactionsForConnection(
+    userId: string,
+    connectionId: string,
+    page: FinancialTransactionSyncPage,
+  ) {
+    const connection = this.getFinancialConnectionForUser(userId, connectionId);
+    if (!connection) {
+      return null;
+    }
+    const accountsByProviderId = new Map(
+      Array.from(this.accounts.values())
+        .filter((account) => account.userId === userId && account.connectionId === connectionId)
+        .map((account) => [account.providerAccountId, account]),
+    );
+    let added = 0;
+    let modified = 0;
+    let removed = 0;
+    for (const sync of page.added) {
+      const account = accountsByProviderId.get(sync.providerAccountId);
+      if (!account) continue;
+      const existing = Array.from(this.transactions.values()).find((transaction) =>
+        transaction.userId === userId
+        && transaction.accountId === account.id
+        && transaction.providerTransactionId === sync.providerTransactionId,
+      );
+      const record: FinancialTransaction = {
+        id: existing?.id ?? randomUUID(),
+        userId,
+        accountId: account.id,
+        providerTransactionId: sync.providerTransactionId,
+        merchant: sync.merchant,
+        amountMinor: sync.amountMinor,
+        currency: sync.currency,
+        occurredOn: sync.occurredOn,
+        category: sync.category,
+        pending: sync.pending,
+      };
+      this.transactions.set(record.id, record);
+      if (existing) modified += 1;
+      else added += 1;
+    }
+    for (const sync of page.modified) {
+      const account = accountsByProviderId.get(sync.providerAccountId);
+      if (!account) continue;
+      const existing = Array.from(this.transactions.values()).find((transaction) =>
+        transaction.userId === userId
+        && transaction.accountId === account.id
+        && transaction.providerTransactionId === sync.providerTransactionId,
+      );
+      const record: FinancialTransaction = {
+        id: existing?.id ?? randomUUID(),
+        userId,
+        accountId: account.id,
+        providerTransactionId: sync.providerTransactionId,
+        merchant: sync.merchant,
+        amountMinor: sync.amountMinor,
+        currency: sync.currency,
+        occurredOn: sync.occurredOn,
+        category: sync.category,
+        pending: sync.pending,
+      };
+      this.transactions.set(record.id, record);
+      if (existing) modified += 1;
+      else added += 1;
+    }
+    for (const transaction of Array.from(this.transactions.values())) {
+      if (transaction.userId === userId && page.removedProviderTransactionIds.includes(transaction.providerTransactionId)) {
+        this.transactions.delete(transaction.id);
+        removed += 1;
+      }
+    }
+    return { added, modified, removed };
+  }
+
+  setFinancialConnectionCursorForUser(
+    userId: string,
+    connectionId: string,
+    cursor: string,
+  ): FinancialConnection | null {
+    const connection = this.getFinancialConnectionForUser(userId, connectionId);
+    if (!connection) {
+      return null;
+    }
+    const updated = { ...connection, cursor };
     this.connections.set(connectionId, updated);
     return updated;
   }

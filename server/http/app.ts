@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 import path from "node:path";
 import { z } from "zod";
-import type { CreateFinancialAccount, FinancialTransaction, MoneyMindRepository, MoneyMindUser } from "../persistence/types";
+import type {
+  CreateFinancialAccount,
+  FinancialTransaction,
+  FinancialTransactionSyncPage,
+  MoneyMindRepository,
+  MoneyMindUser,
+} from "../persistence/types";
 import { ProviderTokenCipher } from "../security/encryption";
 import { hashPassword, verifyPassword } from "../security/password";
 import { SessionManager } from "../security/session";
@@ -43,6 +49,7 @@ export type PlaidGateway = {
   createLinkToken(userId: string): Promise<{ linkToken: string }>;
   exchangePublicToken(publicToken: string): Promise<{ accessToken: string; itemId: string }>;
   getAccounts(accessToken: string): Promise<CreateFinancialAccount[]>;
+  syncTransactions(accessToken: string, cursor: string | null): Promise<FinancialTransactionSyncPage>;
 };
 
 export type PlaidIntegration = {
@@ -222,6 +229,59 @@ export function createMoneyMindApp({ repository, sessions, staticDirectory, plai
       });
     } catch {
       response.status(502).json({ error: "Unable to complete financial connection" });
+    }
+  });
+
+  app.post("/api/plaid/connections/:connectionId/sync", requireUser, async (request: AuthenticatedRequest, response) => {
+    if (!plaid) {
+      response.status(503).json({ error: "Plaid Sandbox is unavailable" });
+      return;
+    }
+    const parsedConnectionId = z.string().uuid().safeParse(request.params.connectionId);
+    if (!parsedConnectionId.success) {
+      response.status(404).json({ error: "Connection not found" });
+      return;
+    }
+    const connection = await repository.getFinancialConnectionForUser(request.userId!, parsedConnectionId.data);
+    if (!connection || connection.status !== "active") {
+      response.status(404).json({ error: "Connection not found" });
+      return;
+    }
+    try {
+      const encrypted = JSON.parse(connection.encryptedAccessToken) as Parameters<ProviderTokenCipher["decrypt"]>[0];
+      const accessToken = plaid.cipher.decrypt(encrypted);
+      let cursor = connection.cursor;
+      let hasMore = true;
+      let pages = 0;
+      const totals = { added: 0, modified: 0, removed: 0 };
+      while (hasMore && pages < 100) {
+        const page = await plaid.gateway.syncTransactions(accessToken, cursor);
+        const synchronized = await repository.synchronizeFinancialTransactionsForConnection(request.userId!, connection.id, page);
+        if (!synchronized) {
+          response.status(404).json({ error: "Connection not found" });
+          return;
+        }
+        totals.added += synchronized.added;
+        totals.modified += synchronized.modified;
+        totals.removed += synchronized.removed;
+        cursor = page.nextCursor;
+        hasMore = page.hasMore;
+        pages += 1;
+      }
+      if (hasMore) {
+        throw new Error("Plaid transaction sync exceeded the page safety limit");
+      }
+      const syncedConnection = await repository.setFinancialConnectionCursorForUser(request.userId!, connection.id, cursor ?? "");
+      if (!syncedConnection) {
+        response.status(404).json({ error: "Connection not found" });
+        return;
+      }
+      response.json({
+        connection: { id: syncedConnection.id, status: syncedConnection.status },
+        synchronized: { ...totals, hasMore: false },
+      });
+    } catch {
+      response.status(502).json({ error: "Unable to synchronize transactions" });
     }
   });
 
