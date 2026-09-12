@@ -30,7 +30,10 @@ export default defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   server: {
-    allowedHosts: ["5173-ix8jlrqfw38gutlpfn807-58c261fa.us2.manus.computer"],
+    allowedHosts: [
+      "5173-ix8jlrqfw38gutlpfn807-58c261fa.us2.manus.computer",
+      "5173-izvaismyoaqgvmtyrdhz3-474439ee.us1.manus.computer",
+    ],
   },
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
